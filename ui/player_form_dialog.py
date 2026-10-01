@@ -1,0 +1,156 @@
+"""Player create/edit dialog — Arabic."""
+
+import os
+import sys
+
+from PyQt6.QtWidgets import (
+    QDialog, QVBoxLayout, QFormLayout, QLineEdit, QComboBox,
+    QDateEdit, QPushButton, QHBoxLayout, QFileDialog, QLabel,
+)
+from PyQt6.QtCore import QDate
+from ui.message_box import warn, error
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from config.config_loader import load_config, get_group_label
+from models.player import Player, create_player, update_player
+from logic.qr_utils import generate_qr_for_player
+from ui.theme import theme, ThemedWidget, make_secondary
+from ui.i18n import t
+
+
+class PlayerFormDialog(ThemedWidget, QDialog):
+    def __init__(self, player=None, parent=None):
+        QDialog.__init__(self, parent)
+        self.editing_player = player
+        self.setWindowTitle(t("dlg.player.title_edit") if player else t("dlg.player.title_add"))
+        self.setMinimumWidth(420)
+        self._selected_photo_path = player.photo_path if player else None
+        self._build_ui()
+        if player:
+            self._prefill(player)
+        self._init_theme()
+
+    def _build_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
+
+        form = QFormLayout()
+        form.setSpacing(10)
+
+        self.name_input = QLineEdit()
+        self.national_id_input = QLineEdit()
+        self.national_id_input.setMaxLength(14)
+        self.phone_input = QLineEdit()
+
+        self.dob_input = QDateEdit()
+        self.dob_input.setCalendarPopup(True)
+        self.dob_input.setDisplayFormat("yyyy-MM-dd")
+        self.dob_input.setDate(QDate(2015, 1, 1))
+
+        self.group_input = QComboBox()
+        config = load_config()
+        for key, group in config["groups"].items():
+            self.group_input.addItem(
+                f"{get_group_label(key)} ({group['time']})", key
+            )
+
+        self.photo_label = QLabel(t("dlg.player.no_photo"))
+        photo_button = QPushButton(t("dlg.player.choose_photo"))
+        make_secondary(photo_button)
+        photo_button.clicked.connect(self._choose_photo)
+        photo_row = QHBoxLayout()
+        photo_row.addWidget(self.photo_label, stretch=1)
+        photo_row.addWidget(photo_button)
+
+        form.addRow(t("dlg.player.name"), self.name_input)
+        form.addRow(t("dlg.player.national_id"), self.national_id_input)
+        form.addRow(t("dlg.player.phone"), self.phone_input)
+        form.addRow(t("dlg.player.dob"), self.dob_input)
+        form.addRow(t("dlg.player.group"), self.group_input)
+        form.addRow(t("dlg.player.photo"), photo_row)
+        layout.addLayout(form)
+
+        button_row = QHBoxLayout()
+        cancel_button = QPushButton(t("dlg.player.cancel"))
+        make_secondary(cancel_button)
+        save_button = QPushButton(t("dlg.player.save"))
+        save_button.setDefault(True)
+        save_button.clicked.connect(self._on_save)
+        cancel_button.clicked.connect(self.reject)
+        button_row.addStretch()
+        button_row.addWidget(cancel_button)
+        button_row.addWidget(save_button)
+        layout.addLayout(button_row)
+
+    def restyle(self):
+        t_ = theme()
+        self.photo_label.setStyleSheet(
+            f"color: {t_.color('text_secondary')}; font-size: 12px;"
+        )
+
+    def _prefill(self, player):
+        self.name_input.setText(player.full_name)
+        self.national_id_input.setText(player.national_id)
+        self.phone_input.setText(player.phone)
+        y, m, d = (int(x) for x in player.dob.split("-"))
+        self.dob_input.setDate(QDate(y, m, d))
+        idx = self.group_input.findData(player.player_group)
+        if idx >= 0:
+            self.group_input.setCurrentIndex(idx)
+        if player.photo_path:
+            self.photo_label.setText(os.path.basename(player.photo_path))
+
+    def _choose_photo(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, t("dlg.player.select_photo_title"), "",
+            t("dlg.player.images_filter")
+        )
+        if path:
+            self._selected_photo_path = path
+            self.photo_label.setText(os.path.basename(path))
+
+    def _on_save(self):
+        name = self.name_input.text().strip()
+        national_id = self.national_id_input.text().strip()
+        phone = self.phone_input.text().strip()
+
+        if not name or not national_id or not phone:
+            warn(self, t("dlg.player.missing_title"), t("dlg.player.missing_msg"))
+            return
+
+        dob = self.dob_input.date().toString("yyyy-MM-dd")
+        group_key = self.group_input.currentData()
+
+        if self.editing_player:
+            self.editing_player.full_name = name
+            self.editing_player.national_id = national_id
+            self.editing_player.phone = phone
+            self.editing_player.dob = dob
+            self.editing_player.player_group = group_key
+            self.editing_player.photo_path = self._selected_photo_path
+            try:
+                update_player(self.editing_player)
+            except Exception as e:
+                error(self, t("dlg.player.save_failed"), str(e))
+                return
+            self.saved_player_id = self.editing_player.player_id
+        else:
+            new_player = Player(
+                None, name, national_id, phone, dob,
+                self._selected_photo_path, group_key, None, None,
+            )
+            try:
+                self.saved_player_id = create_player(new_player)
+            except Exception as e:
+                error(
+                    self, t("dlg.player.save_failed"),
+                    t("dlg.player.save_failed_duplicate", error=e),
+                )
+                return
+            qr_path = generate_qr_for_player(self.saved_player_id)
+            new_player.player_id = self.saved_player_id
+            new_player.qr_code_path = qr_path
+            update_player(new_player)
+            self.newly_created_qr_path = qr_path
+
+        self.accept()

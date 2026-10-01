@@ -1,0 +1,36 @@
+{
+  "academy_name": "AL-Abtal Kung Fu Academy",
+  "academy_name_ar": "أكاديمية الأبطال للكونغ فو",
+  "coach_name": "Ahmed Mostafa",
+  "logo_path": "assets/logo/logo.png",
+
+  "plans": {
+    "4": {
+      "label": "4-Session",
+      "label_ar": "باقة ٤ حصص",
+      "sessions_total": 4,
+      "allowed_days": ["Friday"]
+    },
+    "8": {
+      "label": "8-Session",
+      "label_ar": "باقة ٨ حصص",
+      "sessions_total": 8,
+      "allowed_days": ["Monday", "Friday"]
+    },
+    "12": {
+      "label": "12-Session",
+      "label_ar": "باقة ١٢ حصة",
+      "sessions_total": 12,
+      "allowed_days": ["Monday", "Wednesday", "Friday"]
+    }
+  },
+
+  "groups": {
+    "small": { "label": "Small players", "label_ar": "المجموعة الصغيرة", "time": "18:00" },
+    "large": { "label": "Larger players", "label_ar": "المجموعة الكبيرة", "time": "19:30" },
+    "last":  { "label": "Last group", "label_ar": "المجموعة الأخيرة", "time": "21:00" }
+  },
+
+  "expiry_policy": "thirty_days_from_payment",
+  "undo_window_days": 0
+}

@@ -1,0 +1,117 @@
+# =============================================================================
+# Python
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+develop-eggs/
+downloads/
+eggs/
+.installed.cfg
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg
+MANIFEST
+
+
+build/
+dist/
+dist_installer/
+*.exe
+*.dll
+academy.db
+__pycache__/
+# =============================================================================
+# Virtual environments
+# =============================================================================
+.venv/
+venv/
+ENV/
+env/
+.python-version
+
+# =============================================================================
+# PyInstaller output
+# =============================================================================
+*.manifest
+*.spec.bak
+# The following directories are recreated on every build:
+build/
+dist/
+dist_installer/
+# =============================================================================
+# Native dependencies (downloaded from third parties, not our code)
+# =============================================================================
+libzbar-64.dll
+libiconv.dll
+libzbar-32.dll
+libiconv-2.dll
+
+# =============================================================================
+# User data — never commit real player data
+# =============================================================================
+academy.db
+academy.db-journal
+academy.db-wal
+academy.db-shm
+*.sqlite
+*.sqlite3
+
+# =============================================================================
+# Generated at runtime — QR codes are created on demand
+# =============================================================================
+assets/qr_codes/
+assets/players/
+
+# =============================================================================
+# IDE / editors
+# =============================================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+
+# =============================================================================
+# Operating system junk
+# =============================================================================
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# =============================================================================
+# Logs and temporary files
+# =============================================================================
+*.log
+logs/
+*.tmp
+*.bak
+
+# =============================================================================
+# Test artifacts
+# =============================================================================
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/dist_installer/
