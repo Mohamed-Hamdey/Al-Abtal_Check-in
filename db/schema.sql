@@ -4,7 +4,7 @@
 CREATE TABLE IF NOT EXISTS players (
     player_id       INTEGER PRIMARY KEY AUTOINCREMENT,
     full_name       TEXT NOT NULL,
-    national_id     TEXT NOT NULL UNIQUE,
+    national_id TEXT UNIQUE,
     phone           TEXT NOT NULL,
     dob             TEXT NOT NULL,              -- ISO date: YYYY-MM-DD
     photo_path      TEXT,                       -- local file path under assets/photos/

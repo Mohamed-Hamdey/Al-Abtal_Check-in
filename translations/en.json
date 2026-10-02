@@ -188,7 +188,7 @@
   "dlg.player.missing_title": "Missing fields",
   "dlg.player.missing_msg": "Name, National ID, and Phone are required.",
   "dlg.player.save_failed": "Save failed",
-  "dlg.player.save_failed_duplicate": "Could not save player (duplicate National ID?): {error}",
+  "dlg.player.save_failed_duplicate": "Could not save player: {error}",
   "dlg.player.select_photo_title": "Select Photo",
   "dlg.player.images_filter": "Images (*.png *.jpg *.jpeg)",
 
@@ -244,5 +244,7 @@
   "reason.unknown": "Unknown reason",
   "msg.ok": "OK",
   "msg.yes": "Yes",
-  "msg.no": "No"
+  "msg.no": "No",
+  "checkin.already_today_title": "Already checked in today",
+  "checkin.already_today_msg": "Player \"{name}\" has already been checked in today. Only one check-in per day is allowed."
 }

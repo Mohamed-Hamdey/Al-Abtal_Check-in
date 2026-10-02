@@ -63,7 +63,7 @@ class PlayerFormDialog(ThemedWidget, QDialog):
         photo_row.addWidget(photo_button)
 
         form.addRow(t("dlg.player.name"), self.name_input)
-        form.addRow(t("dlg.player.national_id"), self.national_id_input)
+        form.addRow(t("dlg.player.national_id_optional"), self.national_id_input)
         form.addRow(t("dlg.player.phone"), self.phone_input)
         form.addRow(t("dlg.player.dob"), self.dob_input)
         form.addRow(t("dlg.player.group"), self.group_input)
@@ -109,17 +109,62 @@ class PlayerFormDialog(ThemedWidget, QDialog):
             self._selected_photo_path = path
             self.photo_label.setText(os.path.basename(path))
 
+    def _persist_photo(self, chosen_path):
+        """
+        Copy the user's chosen photo into the app's data folder and return
+        the new path. Returns the original path if it's already inside the
+        app data folder. Returns None if chosen_path is None.
+        """
+        if not chosen_path:
+            return None
+
+        import shutil
+        from paths import user_data_dir
+
+        # Already inside the app data folder? Return as-is.
+        photos_dir = user_data_dir("assets", "photos")
+        try:
+            chosen_abs = os.path.abspath(chosen_path)
+            if chosen_abs.startswith(os.path.abspath(photos_dir)):
+                return chosen_path
+        except Exception:
+            pass
+
+        # Copy into the photos folder with a stable filename.
+        # Include a timestamp so different players' photos don't collide.
+        import time
+        ext = os.path.splitext(chosen_path)[1] or ".jpg"
+        filename = f"photo_{int(time.time() * 1000)}{ext}"
+        dest = os.path.join(photos_dir, filename)
+
+        try:
+            shutil.copy2(chosen_path, dest)
+            return dest
+        except Exception as e:
+            # If copy fails (e.g. permission denied), fall back to the
+            # original path so the user doesn't lose the association.
+            print(f"Warning: could not copy photo to app data folder: {e}")
+            return chosen_path
+
     def _on_save(self):
         name = self.name_input.text().strip()
-        national_id = self.national_id_input.text().strip()
+        national_id = self.national_id_input.text().strip() or None
         phone = self.phone_input.text().strip()
 
-        if not name or not national_id or not phone:
+        if not name or not phone:
             warn(self, t("dlg.player.missing_title"), t("dlg.player.missing_msg"))
             return
 
         dob = self.dob_input.date().toString("yyyy-MM-dd")
         group_key = self.group_input.currentData()
+
+        # Only copy the photo if it actually changed. When editing a player
+        # without touching their photo, keep the existing stored path so we
+        # don't pile up duplicate files in the photos folder.
+        if self.editing_player and self._selected_photo_path == self.editing_player.photo_path:
+            stored_photo_path = self.editing_player.photo_path
+        else:
+            stored_photo_path = self._persist_photo(self._selected_photo_path)
 
         if self.editing_player:
             self.editing_player.full_name = name
@@ -127,7 +172,7 @@ class PlayerFormDialog(ThemedWidget, QDialog):
             self.editing_player.phone = phone
             self.editing_player.dob = dob
             self.editing_player.player_group = group_key
-            self.editing_player.photo_path = self._selected_photo_path
+            self.editing_player.photo_path = stored_photo_path
             try:
                 update_player(self.editing_player)
             except Exception as e:
@@ -136,8 +181,16 @@ class PlayerFormDialog(ThemedWidget, QDialog):
             self.saved_player_id = self.editing_player.player_id
         else:
             new_player = Player(
-                None, name, national_id, phone, dob,
-                self._selected_photo_path, group_key, None, None,
+                player_id=None,
+                full_name=name,
+                national_id=national_id or None,
+                phone=phone,
+                dob=dob,
+                photo_path=stored_photo_path,
+                player_group=group_key,
+                qr_code_path=None,
+                # status intentionally omitted — uses the dataclass default "active"
+                # notes intentionally omitted — uses the dataclass default None
             )
             try:
                 self.saved_player_id = create_player(new_player)

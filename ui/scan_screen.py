@@ -313,6 +313,18 @@ class ScanScreen(ThemedWidget, QWidget):
                 t("checkin.unknown_player_msg", player_id=player_id),
             )
             return
+
+        # Player already checked in today — show an informational message
+        # and return to idle without touching the attendance log or the
+        # session count.
+        if getattr(outcome, "was_duplicate", False):
+            warn(
+                self,
+                t("checkin.already_today_title"),
+                t("checkin.already_today_msg", name=outcome.player.full_name),
+            )
+            return
+
         state = "checked_in" if outcome.checked_in else "denied"
         self.player_card.display_player(outcome.player, outcome.subscription, check_in_state=state)
         self.stack.setCurrentIndex(1)

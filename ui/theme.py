@@ -438,6 +438,80 @@ QToolTip {{
     border-radius: 6px;
     padding: 6px 8px;
 }}
+
+
+QCalendarWidget QWidget {{
+    background-color: {p['surface']};
+    color: {p['text']};
+    alternate-background-color: {p['surface']};
+}}
+
+QCalendarWidget QAbstractItemView:enabled {{
+    background-color: {p['surface']};
+    color: {p['text']};
+    selection-background-color: {p['primary']};
+    selection-color: {p['text_on_accent']};
+    outline: none;
+}}
+
+QCalendarWidget QAbstractItemView:disabled {{
+    color: {p['text_disabled']};
+}}
+
+QCalendarWidget QMenu {{
+    background-color: {p['surface']};
+    color: {p['text']};
+}}
+
+/* Top bar: month/year controls + nav arrows */
+QCalendarWidget QWidget#qt_calendar_navigationbar {{
+    background-color: {p['primary']};
+    color: {p['text_on_accent']};
+}}
+
+QCalendarWidget QToolButton {{
+    background-color: transparent;
+    color: {p['text_on_accent']};
+    border: none;
+    padding: 4px 10px;
+    font-weight: 600;
+}}
+
+QCalendarWidget QToolButton:hover {{
+    background-color: {p['primary_hover']};
+    border-radius: 4px;
+}}
+
+QCalendarWidget QToolButton:pressed {{
+    background-color: {p['primary_pressed']};
+    border-radius: 4px;
+}}
+
+QCalendarWidget QToolButton::menu-indicator {{
+    image: none;
+}}
+
+/* Month/Year dropdowns inside the calendar */
+QCalendarWidget QComboBox {{
+    background-color: {p['surface']};
+    color: {p['text']};
+    border: 1px solid {p['border']};
+    border-radius: 4px;
+    padding: 2px 6px;
+}}
+
+/* Weekday header row (Mon, Tue, Wed, ...) */
+QCalendarWidget QWidget {{
+    color: {p['text']};
+}}
+
+/* The horizontal header strip showing weekday names */
+QCalendarWidget QTableView QHeaderView::section {{
+    background-color: {p['surface_alt']};
+    color: {p['text_secondary']};
+    padding: 4px;
+    border: none;
+}}
 """
 
 

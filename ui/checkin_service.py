@@ -1,9 +1,10 @@
 """
 Shared check-in pipeline.
 
-Extracted so the camera-driven scan screen and the admin "manual check-in"
-action (for a failed QR) run through exactly one code path — the logic that
-decides Allowed/Denied and what gets logged must never diverge between them.
+Policy: a player may be checked in at most once per calendar day.
+A second scan of the same player on the same day is refused with a
+"already checked in today" message; no attendance row is logged and no
+session is decremented.
 """
 
 import os
@@ -16,25 +17,18 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from models.player import get_player_by_id, Player
 from models.subscription import decrement_session, Subscription
-from models.attendance import log_attendance
+from models.attendance import log_attendance, has_checked_in_today
 from logic.validation import validate_check_in
 from ui.deny_popup import DenyPopup
-
-RECORDED_BY = "reception"  # v1 has no login system; single shared identity for now
-
-
 from ui.i18n import t
 
+RECORDED_BY = "reception"
+
+
 def _translate_reason(raw_reason: str) -> str:
-    """
-    Map a validation-layer reason string to a localized one. The raw reason
-    comes from logic/validation.py in English; we match on substrings so
-    minor wording changes there don't silently break the mapping.
-    """
+    """Map validation-layer English reason to a localized string."""
     r = (raw_reason or "").lower()
-    if "not a training day" in r or "not a training day for this plan" in r:
-        # Extract the allowed days if the caller included them, else show
-        # the whole string as-is (no translation).
+    if "not a training day" in r:
         if "allowed:" in r:
             days = raw_reason.split("allowed:", 1)[1].strip().rstrip(")")
             return t("reason.not_a_training_day", days=days)
@@ -49,25 +43,48 @@ def _translate_reason(raw_reason: str) -> str:
         return t("reason.no_subscription")
     return raw_reason
 
+
 @dataclass
 class CheckInOutcome:
     player: Player
     subscription: Optional[Subscription]
-    checked_in: bool          # True if allowed, or denied-but-overridden
-    reason: Optional[str]     # populated when checked_in is False
+    checked_in: bool
+    reason: Optional[str]
     was_override: bool
+    # True when the scan was refused because the player already checked
+    # in today. The caller shows an informational message but takes no
+    # other action.
+    was_duplicate: bool = False
 
 
-def perform_check_in(player_id: int, parent_widget=None, recorded_by: str = RECORDED_BY) -> Optional[CheckInOutcome]:
+def perform_check_in(
+    player_id: int,
+    parent_widget=None,
+    recorded_by: str = RECORDED_BY,
+) -> Optional[CheckInOutcome]:
     """
-    Runs the full pipeline for one player_id: validate, log, decrement,
-    and — if denied — show the blocking DenyPopup modal against
-    parent_widget. Returns None if the player_id doesn't exist (caller
-    should show its own "unknown player" message in that case).
+    Runs the full pipeline for one player_id.
+
+    Returns None if the player doesn't exist.
+    Returns an outcome with was_duplicate=True if the player was already
+    checked in today — caller should show an informational message.
     """
     player = get_player_by_id(player_id)
     if player is None:
         return None
+
+    # --- Once-per-day guard ---------------------------------------------
+    # If the player already has an 'allowed' attendance entry dated today,
+    # refuse this scan: no logging, no decrement, no popup.
+    if has_checked_in_today(player_id):
+        return CheckInOutcome(
+            player=player,
+            subscription=None,
+            checked_in=True,
+            reason=None,
+            was_override=False,
+            was_duplicate=True,
+        )
 
     result = validate_check_in(player_id, date.today())
 
@@ -75,6 +92,10 @@ def perform_check_in(player_id: int, parent_widget=None, recorded_by: str = RECO
         sub_id = result.subscription.subscription_id
         log_attendance(player_id, sub_id, "allowed", None, recorded_by)
         decrement_session(sub_id)
+        # Keep the in-memory copy in sync so the UI shows the new count.
+        result.subscription.sessions_remaining = max(
+            0, result.subscription.sessions_remaining - 1
+        )
         return CheckInOutcome(
             player=player, subscription=result.subscription,
             checked_in=True, reason=None, was_override=False,
@@ -91,6 +112,10 @@ def perform_check_in(player_id: int, parent_widget=None, recorded_by: str = RECO
                         was_override=True, override_note=note)
         if sub_id is not None:
             decrement_session(sub_id)
+            if result.subscription is not None:
+                result.subscription.sessions_remaining = max(
+                    0, result.subscription.sessions_remaining - 1
+                )
         return CheckInOutcome(
             player=player, subscription=result.subscription,
             checked_in=True, reason=None, was_override=True,

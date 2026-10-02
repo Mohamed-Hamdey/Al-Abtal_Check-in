@@ -113,6 +113,35 @@ def get_recent_attendance_with_names(limit: int = 5) -> list[dict]:
         conn.close()
 
 
+def has_checked_in_today(player_id: int) -> bool:
+    """
+    True if this player already has an 'allowed' attendance entry dated
+    today. Used by the check-in pipeline to block the same player from
+    being checked in twice in one calendar day.
+
+    Denied entries do NOT count — only successful check-ins block future
+    scans. That way a player who was denied in the morning (e.g. expired
+    subscription) can be scanned again after the receptionist fixes their
+    account, and a fresh decision can be made.
+    """
+    today_str = date.today().isoformat()
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            """
+            SELECT 1 FROM attendance_log
+            WHERE player_id = ?
+              AND result = 'allowed'
+              AND substr(scan_datetime, 1, 10) = ?
+            LIMIT 1
+            """,
+            (player_id, today_str),
+        ).fetchone()
+        return row is not None
+    finally:
+        conn.close()
+
+
 def can_undo(log_entry: AttendanceLog, today: date) -> bool:
     """Same-day-only undo window (Decisions Log #9)."""
     entry_date = datetime.fromisoformat(log_entry.scan_datetime).date()

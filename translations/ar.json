@@ -178,9 +178,8 @@
   "dlg.player.save": "حفظ",
   "dlg.player.cancel": "إلغاء",
   "dlg.player.missing_title": "حقول ناقصة",
-  "dlg.player.missing_msg": "الاسم والرقم القومي ورقم الهاتف مطلوبة.",
   "dlg.player.save_failed": "فشل الحفظ",
-  "dlg.player.save_failed_duplicate": "تعذّر حفظ اللاعب (قد يكون الرقم القومي مكررًا): {error}",
+  "dlg.player.save_failed_duplicate": "تعذّر حفظ اللاعب: {error}",
   "dlg.player.select_photo_title": "اختيار صورة",
   "dlg.player.images_filter": "الصور (*.png *.jpg *.jpeg)",
 
@@ -237,7 +236,11 @@
 
   "msg.ok": "حسنًا",
   "msg.yes": "نعم",
-  "msg.no": "لا"
+  "msg.no": "لا",
+  "dlg.player.national_id_optional": "الرقم القومي (اختياري)",
+  "dlg.player.missing_msg": "الاسم ورقم الهاتف مطلوبان.",
+  "checkin.already_today_title": "تم تسجيل الحضور مسبقًا",
+  "checkin.already_today_msg": "تم تسجيل حضور اللاعب «{name}» مسبقًا اليوم. لا يمكن تسجيل الحضور أكثر من مرة في اليوم نفسه."
 
 
 }
