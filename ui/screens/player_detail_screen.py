@@ -15,22 +15,18 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from config.config_loader import get_plan, get_plan_label
-from models.player import get_player_by_id, update_player
-from models.subscription import (
-    get_active_subscription, suspend_subscription, adjust_sessions_remaining,
-    get_display_status, update_subscription_payment,
-)
-from models.attendance import get_attendance_for_player, can_undo, undo_check_in
-from ui.player_card import PlayerCardWidget
-from ui.player_form_dialog import PlayerFormDialog
-from ui.subscription_form_dialog import SubscriptionFormDialog
-from ui.adjust_sessions_dialog import AdjustSessionsDialog
-from ui.update_payment_dialog import UpdatePaymentDialog
-from ui.checkin_service import perform_check_in
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+from config.config_loader import get_plan_label
+from repositories import players_repo
+from services import subscription_service, attendance_service
+from services.checkin_service import perform_check_in
+from ui.cards.player_card import PlayerCardWidget
+from ui.dialogs.player_form_dialog import PlayerFormDialog
+from ui.dialogs.subscription_form_dialog import SubscriptionFormDialog
+from ui.dialogs.adjust_sessions_dialog import AdjustSessionsDialog
+from ui.dialogs.update_payment_dialog import UpdatePaymentDialog
 from logic.qr_utils import generate_qr_for_player
-from ui.progress_view import ProgressPanel
+from ui.screens.progress_view import ProgressPanel
 from ui.theme import theme, ThemedWidget, make_danger, make_secondary, GUTTER
 from ui.i18n import t
 from ui.message_box import info, warn, ask
@@ -182,13 +178,13 @@ class PlayerDetailScreen(ThemedWidget, QWidget):
     # ---------- data ----------
 
     def refresh(self):
-        player = get_player_by_id(self.player_id)
+        player = players_repo.get_by_id(self.player_id)
         if player is None:
             return
         self.current_player = player
 
-        display = get_display_status(self.player_id)
-        active_sub = get_active_subscription(self.player_id) if display["status"] == "active" else None
+        display = subscription_service.get_display_status(self.player_id)
+        active_sub = subscription_service.get_active(self.player_id) if display["status"] == "active" else None
         self.current_subscription = active_sub
         self._current_display = display
 
@@ -238,7 +234,7 @@ class PlayerDetailScreen(ThemedWidget, QWidget):
             )
 
     def _load_attendance(self):
-        rows = get_attendance_for_player(self.player_id)
+        rows = attendance_service.get_for_player(self.player_id)
         self.attendance_table.setRowCount(len(rows))
         self._attendance_rows = rows
 
@@ -277,7 +273,7 @@ class PlayerDetailScreen(ThemedWidget, QWidget):
         if not self.current_subscription:
             return
         if ask(self, t("detail.msg.suspend_title"), t("detail.msg.suspend_body")):
-            suspend_subscription(self.current_subscription.subscription_id)
+            subscription_service.suspend(self.current_subscription.subscription_id)
             self.refresh()
 
     def _on_adjust_sessions(self):
@@ -290,7 +286,7 @@ class PlayerDetailScreen(ThemedWidget, QWidget):
             parent=self,
         )
         if dialog.exec():
-            adjust_sessions_remaining(self.current_subscription.subscription_id, dialog.new_value())
+            subscription_service.adjust_sessions(self.current_subscription.subscription_id, dialog.new_value())
             self.refresh()
 
     def _on_record_payment(self):
@@ -302,7 +298,7 @@ class PlayerDetailScreen(ThemedWidget, QWidget):
         dialog = UpdatePaymentDialog(current_amount or 0.0, parent=self)
         if dialog.exec():
             amount, payment_date = dialog.get_values()
-            update_subscription_payment(display["subscription_id"], amount, payment_date)
+            subscription_service.record_payment(display["subscription_id"], amount, payment_date)
             self.refresh()
 
     def _on_export_qr(self):
@@ -325,10 +321,10 @@ class PlayerDetailScreen(ThemedWidget, QWidget):
             return
         row_index = selected[0].row()
         entry = self._attendance_rows[row_index]
-        if not can_undo(entry, date.today()):
+        if not attendance_service.can_undo(entry, date.today()):
             warn(self, t("detail.att.cannot_undo_title"), t("detail.att.cannot_undo_msg"))
             return
-        if undo_check_in(entry.log_id, date.today()):
+        if attendance_service.undo_check_in(entry.log_id, date.today()):
             self.refresh()
         else:
             warn(self, t("detail.att.undo_failed_title"), t("detail.att.undo_failed_msg"))
@@ -346,11 +342,11 @@ class PlayerDetailScreen(ThemedWidget, QWidget):
             return
         path = generate_qr_for_player(self.player_id)
         self.current_player.qr_code_path = path
-        update_player(self.current_player)
+        players_repo.update(self.current_player)
         info(self, t("detail.msg.reissue_qr_done_title"),
              t("detail.msg.reissue_qr_done_msg", path=path))
         self.refresh()
 
     def _on_save_notes(self):
         self.current_player.notes = self.notes_input.toPlainText().strip() or None
-        update_player(self.current_player)
+        players_repo.update(self.current_player)

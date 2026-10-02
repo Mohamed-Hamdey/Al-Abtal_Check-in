@@ -20,8 +20,8 @@ from PyQt6.QtGui import QPixmap
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from config.config_loader import get_academy_name, get_academy_logo, load_config
-from ui.scan_screen import ScanScreen
-from ui.player_list_screen import PlayerListScreen
+from ui.screens.scan_screen import ScanScreen
+from ui.screens.player_list_screen import PlayerListScreen
 from ui.theme import theme, theme_toggle_button, language_toggle_button
 from ui import i18n
 from ui.i18n import t

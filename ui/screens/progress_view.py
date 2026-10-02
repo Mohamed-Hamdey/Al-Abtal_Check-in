@@ -14,10 +14,9 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 from config.config_loader import get_plan, get_plan_label
-from models.subscription import get_subscription_history, get_active_subscription
-from models.attendance import get_attendance_for_player
+from services import subscription_service, attendance_service
 from ui.theme import theme, ThemedWidget
 from ui.widgets import StatCard
 from ui.i18n import t
@@ -28,9 +27,6 @@ MONTH_KEYS = [
     "month.september", "month.october", "month.november", "month.december",
 ]
 
-# English weekday name → i18n key. Used to test membership in the plan's
-# allowed_days list (which stays English in the config), while displaying
-# the localized name.
 WEEKDAY_KEYS = {
     "Monday":    "weekday.monday",
     "Tuesday":   "weekday.tuesday",
@@ -113,11 +109,9 @@ class ProgressPanel(ThemedWidget, QWidget):
             self._render_month_grid()
         self._render_history()
 
-    # ---------- data ----------
-
     def refresh(self):
-        attendance = get_attendance_for_player(self.player_id)
-        active_sub = get_active_subscription(self.player_id)
+        attendance = attendance_service.get_for_player(self.player_id)
+        active_sub = subscription_service.get_active(self.player_id)
 
         total_attended = sum(1 for e in attendance if e.result == "allowed")
         denial_count = sum(1 for e in attendance if e.result == "denied")
@@ -138,7 +132,7 @@ class ProgressPanel(ThemedWidget, QWidget):
         self._render_history()
 
     def _render_history(self):
-        history = get_subscription_history(self.player_id)
+        history = subscription_service.get_history(self.player_id)
         self.history_table.setRowCount(len(history))
         t_ = theme()
         for i, sub in enumerate(history):

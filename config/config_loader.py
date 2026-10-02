@@ -7,12 +7,8 @@ import os
 import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from paths import bundled_path
-
-
-# Bundled read-only files — always shipped with the app.
-CONFIG_PATH = bundled_path("config", "academy_config.json")
-
+from paths import AppPaths, bundled_path
+CONFIG_PATH = AppPaths.config_file()
 _config_cache = None
 
 

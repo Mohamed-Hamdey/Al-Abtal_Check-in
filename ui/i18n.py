@@ -15,9 +15,8 @@ import os
 import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from paths import bundled_path
-
-_TRANSLATIONS_DIR = bundled_path("translations")
+from paths import AppPaths
+_TRANSLATIONS_DIR = AppPaths.translations_dir()
 _strings: dict = {}
 _lang: str = "en"
 

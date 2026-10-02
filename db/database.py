@@ -11,14 +11,9 @@ import os
 import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from paths import bundled_path, user_data_path, user_data_root
-
-
-# Schema: read-only, ships inside the bundle.
-SCHEMA_PATH = bundled_path("db", "schema.sql")
-
-# Database: writable, lives outside the bundle so it survives app upgrades.
-DB_PATH = user_data_path("academy.db")
+from paths import AppPaths, user_data_root
+SCHEMA_PATH = AppPaths.schema_file()
+DB_PATH = AppPaths.database()
 
 
 def get_connection() -> sqlite3.Connection:

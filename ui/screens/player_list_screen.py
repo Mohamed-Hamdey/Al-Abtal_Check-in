@@ -12,16 +12,13 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from config.config_loader import (
-    get_group, load_config, get_plan,
-    get_group_label, get_plan_label,
-)
-from models.player import list_all_players, search_players_by_name
-from models.subscription import get_display_status
-from ui.player_form_dialog import PlayerFormDialog
-from ui.player_detail_screen import PlayerDetailScreen
-from ui.qr_preview_dialog import QRPreviewDialog
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+from config.config_loader import load_config, get_group_label, get_plan_label
+from repositories import players_repo
+from services import subscription_service
+from ui.dialogs.player_form_dialog import PlayerFormDialog
+from ui.screens.player_detail_screen import PlayerDetailScreen
+from ui.dialogs.qr_preview_dialog import QRPreviewDialog
 from ui.theme import theme, ThemedWidget, GUTTER
 from ui.i18n import t
 
@@ -160,7 +157,7 @@ class PlayerListScreen(ThemedWidget, QWidget):
 
     def refresh(self):
         search_text = self.search_input.text().strip()
-        players = search_players_by_name(search_text) if search_text else list_all_players()
+        players = players_repo.search_by_name(search_text) if search_text else players_repo.list_all()
 
         group_filter = self.group_filter.currentData()
         plan_filter = self.plan_filter.currentData()
@@ -170,7 +167,7 @@ class PlayerListScreen(ThemedWidget, QWidget):
         for player in players:
             if group_filter and player.player_group != group_filter:
                 continue
-            display = get_display_status(player.player_id)
+            display = subscription_service.get_display_status(player.player_id)
             if plan_filter and display["plan_type"] != plan_filter:
                 continue
             if status_filter and display["status"] != status_filter:

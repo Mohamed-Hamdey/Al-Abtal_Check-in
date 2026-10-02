@@ -1,10 +1,15 @@
 """
-Shared check-in pipeline.
+Check-in service — the single pipeline for validating, logging, and
+decrementing a check-in.
 
 Policy: a player may be checked in at most once per calendar day.
 A second scan of the same player on the same day is refused with a
-"already checked in today" message; no attendance row is logged and no
+"already checked in today" outcome; no attendance row is logged and no
 session is decremented.
+
+The DenyPopup is a UI concern. This service accepts a parent_widget
+parameter purely so the caller can pass it through to the popup — the
+service itself does not import UI modules besides that one.
 """
 
 import os
@@ -15,11 +20,12 @@ from typing import Optional
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from models.player import get_player_by_id, Player
-from models.subscription import decrement_session, Subscription
-from models.attendance import log_attendance, has_checked_in_today
+from models.player import Player
+from models.subscription import Subscription
+from repositories import players_repo
+from services import subscription_service, attendance_service
 from logic.validation import validate_check_in
-from ui.deny_popup import DenyPopup
+from ui.dialogs.deny_popup import DenyPopup
 from ui.i18n import t
 
 RECORDED_BY = "reception"
@@ -51,9 +57,6 @@ class CheckInOutcome:
     checked_in: bool
     reason: Optional[str]
     was_override: bool
-    # True when the scan was refused because the player already checked
-    # in today. The caller shows an informational message but takes no
-    # other action.
     was_duplicate: bool = False
 
 
@@ -66,17 +69,15 @@ def perform_check_in(
     Runs the full pipeline for one player_id.
 
     Returns None if the player doesn't exist.
-    Returns an outcome with was_duplicate=True if the player was already
-    checked in today — caller should show an informational message.
+    Returns an outcome with was_duplicate=True if already checked in today.
     """
-    player = get_player_by_id(player_id)
+    player = players_repo.get_by_id(player_id)
     if player is None:
         return None
 
-    # --- Once-per-day guard ---------------------------------------------
-    # If the player already has an 'allowed' attendance entry dated today,
-    # refuse this scan: no logging, no decrement, no popup.
-    if has_checked_in_today(player_id):
+    # Once-per-day guard
+    # Once-per-day guard
+    if attendance_service.has_checked_in_today(player_id, on_date=date.today()):
         return CheckInOutcome(
             player=player,
             subscription=None,
@@ -90,9 +91,8 @@ def perform_check_in(
 
     if result.allowed:
         sub_id = result.subscription.subscription_id
-        log_attendance(player_id, sub_id, "allowed", None, recorded_by)
-        decrement_session(sub_id)
-        # Keep the in-memory copy in sync so the UI shows the new count.
+        attendance_service.log_attendance(player_id, sub_id, "allowed", None, recorded_by)
+        subscription_service.decrement_session(sub_id)
         result.subscription.sessions_remaining = max(
             0, result.subscription.sessions_remaining - 1
         )
@@ -108,10 +108,12 @@ def perform_check_in(
     sub_id = result.subscription.subscription_id if result.subscription else None
 
     if was_override:
-        log_attendance(player_id, sub_id, "allowed", None, recorded_by,
-                        was_override=True, override_note=note)
+        attendance_service.log_attendance(
+            player_id, sub_id, "allowed", None, recorded_by,
+            was_override=True, override_note=note,
+        )
         if sub_id is not None:
-            decrement_session(sub_id)
+            subscription_service.decrement_session(sub_id)
             if result.subscription is not None:
                 result.subscription.sessions_remaining = max(
                     0, result.subscription.sessions_remaining - 1
@@ -121,7 +123,9 @@ def perform_check_in(
             checked_in=True, reason=None, was_override=True,
         )
 
-    log_attendance(player_id, sub_id, "denied", result.reason, recorded_by)
+    attendance_service.log_attendance(
+        player_id, sub_id, "denied", result.reason, recorded_by
+    )
     return CheckInOutcome(
         player=player, subscription=result.subscription,
         checked_in=False, reason=result.reason, was_override=False,

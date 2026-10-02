@@ -16,13 +16,13 @@ from ui.message_box import warn
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QImage, QPixmap, QColor
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 from config.config_loader import get_academy_name
-from models.player import search_players_by_name, get_player_by_id
-from models.attendance import get_recent_attendance_with_names
+from repositories import players_repo
+from services import attendance_service
+from services.checkin_service import perform_check_in, RECORDED_BY
 from logic.qr_utils import decode_qr_from_frame
-from ui.player_card import PlayerCardWidget
-from ui.checkin_service import perform_check_in, RECORDED_BY
+from ui.cards.player_card import PlayerCardWidget
 from ui.theme import (
     theme, make_danger, ThemedWidget,
     CARD_RADIUS, GUTTER, force_repaint,
@@ -251,7 +251,7 @@ class ScanScreen(ThemedWidget, QWidget):
 
     def _refresh_recent_checkins(self):
         self.recent_list.clear()
-        entries = get_recent_attendance_with_names(limit=10)
+        entries = attendance_service.get_recent_with_names(limit=10)
         if not entries:
             item = QListWidgetItem(t("checkin.recent.empty"))
             item.setFlags(Qt.ItemFlag.NoItemFlags)
@@ -278,11 +278,11 @@ class ScanScreen(ThemedWidget, QWidget):
         self.results_list.clear()
         results = []
         if query.isdigit():
-            by_id = get_player_by_id(int(query))
+            by_id = players_repo.get_by_id(int(query))
             if by_id:
                 results.append(by_id)
         if not results:
-            results.extend(search_players_by_name(query))
+            results.extend(players_repo.search_by_name(query))
 
         if not results:
             self.results_list.addItem(t("checkin.search.no_match"))

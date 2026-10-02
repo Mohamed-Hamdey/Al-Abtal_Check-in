@@ -1,0 +1,1 @@
+"""Repositories — all SQL lives here. One module per table."""

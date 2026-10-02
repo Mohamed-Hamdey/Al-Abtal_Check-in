@@ -11,9 +11,9 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import QDate
 from ui.message_box import ask
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 from config.config_loader import load_config, get_plan_label
-from models.subscription import activate_subscription, compute_expiry_date
+from services import subscription_service
 from ui.theme import theme, ThemedWidget, make_secondary
 from ui.i18n import t
 
@@ -92,7 +92,7 @@ class SubscriptionFormDialog(ThemedWidget, QDialog):
         start = date(qd.year(), qd.month(), qd.day())
         pd = self.payment_date_input.date()
         payment_date = date(pd.year(), pd.month(), pd.day())
-        expiry = compute_expiry_date(start, payment_date)
+        expiry = subscription_service.compute_expiry_date(start, payment_date)
         self.expiry_label.setText(expiry.isoformat())
 
     def _on_save(self):
@@ -107,7 +107,7 @@ class SubscriptionFormDialog(ThemedWidget, QDialog):
             if not ask(self, t("dlg.sub.zero_title"), t("dlg.sub.zero_msg")):
                 return
 
-        self.new_subscription_id = activate_subscription(
+        self.new_subscription_id = subscription_service.activate(
             self.player_id, plan_type, start, self.activated_by, amount, payment_date,
         )
         self.accept()

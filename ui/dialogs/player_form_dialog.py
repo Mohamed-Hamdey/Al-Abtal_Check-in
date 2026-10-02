@@ -9,9 +9,11 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import QDate
 from ui.message_box import warn, error
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 from config.config_loader import load_config, get_group_label
-from models.player import Player, create_player, update_player
+from models.player import Player
+from repositories import players_repo
 from logic.qr_utils import generate_qr_for_player
 from ui.theme import theme, ThemedWidget, make_secondary
 from ui.i18n import t
@@ -90,7 +92,7 @@ class PlayerFormDialog(ThemedWidget, QDialog):
 
     def _prefill(self, player):
         self.name_input.setText(player.full_name)
-        self.national_id_input.setText(player.national_id)
+        self.national_id_input.setText(player.national_id or "")
         self.phone_input.setText(player.phone)
         y, m, d = (int(x) for x in player.dob.split("-"))
         self.dob_input.setDate(QDate(y, m, d))
@@ -110,19 +112,12 @@ class PlayerFormDialog(ThemedWidget, QDialog):
             self.photo_label.setText(os.path.basename(path))
 
     def _persist_photo(self, chosen_path):
-        """
-        Copy the user's chosen photo into the app's data folder and return
-        the new path. Returns the original path if it's already inside the
-        app data folder. Returns None if chosen_path is None.
-        """
         if not chosen_path:
             return None
 
         import shutil
-        from paths import user_data_dir
-
-        # Already inside the app data folder? Return as-is.
-        photos_dir = user_data_dir("assets", "photos")
+        from paths import AppPaths
+        photos_dir = AppPaths.photos_dir()
         try:
             chosen_abs = os.path.abspath(chosen_path)
             if chosen_abs.startswith(os.path.abspath(photos_dir)):
@@ -130,8 +125,6 @@ class PlayerFormDialog(ThemedWidget, QDialog):
         except Exception:
             pass
 
-        # Copy into the photos folder with a stable filename.
-        # Include a timestamp so different players' photos don't collide.
         import time
         ext = os.path.splitext(chosen_path)[1] or ".jpg"
         filename = f"photo_{int(time.time() * 1000)}{ext}"
@@ -141,8 +134,6 @@ class PlayerFormDialog(ThemedWidget, QDialog):
             shutil.copy2(chosen_path, dest)
             return dest
         except Exception as e:
-            # If copy fails (e.g. permission denied), fall back to the
-            # original path so the user doesn't lose the association.
             print(f"Warning: could not copy photo to app data folder: {e}")
             return chosen_path
 
@@ -158,9 +149,6 @@ class PlayerFormDialog(ThemedWidget, QDialog):
         dob = self.dob_input.date().toString("yyyy-MM-dd")
         group_key = self.group_input.currentData()
 
-        # Only copy the photo if it actually changed. When editing a player
-        # without touching their photo, keep the existing stored path so we
-        # don't pile up duplicate files in the photos folder.
         if self.editing_player and self._selected_photo_path == self.editing_player.photo_path:
             stored_photo_path = self.editing_player.photo_path
         else:
@@ -174,7 +162,7 @@ class PlayerFormDialog(ThemedWidget, QDialog):
             self.editing_player.player_group = group_key
             self.editing_player.photo_path = stored_photo_path
             try:
-                update_player(self.editing_player)
+                players_repo.update(self.editing_player)
             except Exception as e:
                 error(self, t("dlg.player.save_failed"), str(e))
                 return
@@ -189,11 +177,9 @@ class PlayerFormDialog(ThemedWidget, QDialog):
                 photo_path=stored_photo_path,
                 player_group=group_key,
                 qr_code_path=None,
-                # status intentionally omitted — uses the dataclass default "active"
-                # notes intentionally omitted — uses the dataclass default None
             )
             try:
-                self.saved_player_id = create_player(new_player)
+                self.saved_player_id = players_repo.create(new_player)
             except Exception as e:
                 error(
                     self, t("dlg.player.save_failed"),
@@ -203,7 +189,7 @@ class PlayerFormDialog(ThemedWidget, QDialog):
             qr_path = generate_qr_for_player(self.saved_player_id)
             new_player.player_id = self.saved_player_id
             new_player.qr_code_path = qr_path
-            update_player(new_player)
+            players_repo.update(new_player)
             self.newly_created_qr_path = qr_path
 
         self.accept()

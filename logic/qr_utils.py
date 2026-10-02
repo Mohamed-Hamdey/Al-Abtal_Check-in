@@ -9,12 +9,8 @@ import cv2
 from pyzbar.pyzbar import decode as zbar_decode
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from paths import user_data_dir
-
-
-# QR codes are user data — regenerated on demand, so they live in the
-# writable data folder, not inside the app bundle.
-QR_CODES_DIR = user_data_dir("assets", "qr_codes")
+from paths import AppPaths
+QR_CODES_DIR = AppPaths.qr_codes_dir()
 
 
 def generate_qr_for_player(player_id: int) -> str:
